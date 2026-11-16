@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connection Test</title>
+<style>
+  body { font-family: -apple-system, "Hiragino Sans", sans-serif; background: #f7f1e6; color: #3c281e; margin: 0; padding: 30px 20px; }
+  .box { max-width: 640px; margin: 0 auto; background: #fff; border: 3px solid #3c281e; padding: 24px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  p.sub { margin: 0 0 22px; color: #8a7a6d; }
+  .row { display: flex; align-items: center; gap: 14px; font-size: 20px; padding: 12px 0; border-bottom: 2px dotted #e4dacb; }
+  .dot { width: 28px; height: 28px; border-radius: 50%; background: #d8d0c8; flex: none; }
+  .ok .dot { background: #3bb36b; } .bad .dot { background: #d8323c; }
+  .detail { font-size: 14px; color: #8a7a6d; margin-left: auto; text-align: right; max-width: 55%; word-break: break-word; }
+  .result { margin-top: 22px; font-size: 28px; font-weight: bold; text-align: center; padding: 18px; border: 3px solid #3c281e; }
+  .result.ok { background: #d9f5e3; } .result.bad { background: #fde0e0; }
+  button { margin-top: 18px; font-size: 18px; padding: 10px 20px; border: 3px solid #3c281e; background: #ffc83d; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Restaurant reviews: connection test</h1>
+  <p class="sub">Open this on a student iPad and on the teacher computer.</p>
+  <div class="row" id="r1"><span class="dot"></span>1. Reach the database<span class="detail"></span></div>
+  <div class="row" id="r2"><span class="dot"></span>2. Save a test review<span class="detail"></span></div>
+  <div class="row" id="r3"><span class="dot"></span>3. Read it back<span class="detail"></span></div>
+  <div class="result" id="result">Testing...</div>
+  <div style="text-align:center"><button onclick="run()">Test again</button></div>
+</div>
+<script>
+const URL_ = "https://oklpiqdfptwyhrpvxydq.supabase.co";
+const KEY = "sb_publishable_Yt-nPbSbbClmd4LvoK_bmA_xI6S-NZj";
+const H = { apikey: KEY, "Content-Type": "application/json" };
+
+function mark(id, ok, detail) {
+  const r = document.getElementById(id);
+  r.className = "row " + (ok ? "ok" : "bad");
+  r.querySelector(".detail").textContent = detail || "";
+}
+async function call(path, opts = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(URL_ + "/rest/v1/" + path, Object.assign({ headers: H, signal: ctrl.signal }, opts));
+    const text = await res.text();
+    if (!res.ok) throw new Error("HTTP " + res.status + " " + text.slice(0, 120));
+    return text ? JSON.parse(text) : null;
+  } catch (e) {
+    throw new Error(e.name === "AbortError" ? "No answer after 8 seconds (probably blocked)" : e.message);
+  } finally { clearTimeout(t); }
+}
+async function run() {
+  ["r1", "r2", "r3"].forEach(id => { document.getElementById(id).className = "row"; document.querySelector("#" + id + " .detail").textContent = ""; });
+  const result = document.getElementById("result");
+  result.className = "result"; result.textContent = "Testing...";
+  const id = "test-" + Math.random().toString(36).slice(2, 10);
+  try {
+    await call("restaurants?select=id&limit=1"); mark("r1", true, "OK");
+  } catch (e) { mark("r1", false, e.message); return fail(); }
+  try {
+    await call("restaurants", { method: "POST", headers: Object.assign({ Prefer: "return=minimal" }, H),
+      body: JSON.stringify({ id, name: "Test", style: "test" }) });
+    await call("reviews", { method: "POST", headers: Object.assign({ Prefer: "return=minimal" }, H),
+      body: JSON.stringify({ restaurant_id: id, stars: 5, phrase_id: 0 }) });
+    mark("r2", true, "OK");
+  } catch (e) { mark("r2", false, e.message); return fail(); }
+  try {
+    const rows = await call("reviews?select=stars&restaurant_id=eq." + id);
+    if (!rows || rows.length !== 1) throw new Error("Saved review not found");
+    mark("r3", true, "OK");
+  } catch (e) { mark("r3", false, e.message); return fail(); }
+  result.className = "result ok"; result.textContent = "Connected! Reviews will work here.";
+}
+function fail() { const r = document.getElementById("result"); r.className = "result bad"; r.textContent = "Not working on this device/network"; }
+run();
+</script>
+</body>
+</html>

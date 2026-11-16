@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Make Your Restaurant</title>
+<style>
+  @font-face { font-family: "DinerPixel"; src: url("dinerpixel.woff") format("woff"); }
+
+  :root {
+    --ink: #3c281e; --red: #d8323c; --red-d: #a01e28; --teal: #2f9c95; --teal-d: #1f6e69;
+    --cream: #f7f1e6; --cream-d: #e4dacb; --paper: #fffdf5; --dark: #2b2b38;
+    --yel: #ffc83d; --yel-d: #d39a12; --grey: #8a7a6d;
+    --sign: #ff4f8b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: "DinerPixel", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
+    color: var(--ink); background: var(--cream);
+    background-image: linear-gradient(var(--cream-d) 2px, transparent 2px), linear-gradient(90deg, var(--cream-d) 2px, transparent 2px);
+    background-size: 32px 32px;
+    -webkit-user-select: none; user-select: none;
+    -webkit-font-smoothing: none; font-smooth: never;
+  }
+  img { image-rendering: pixelated; image-rendering: crisp-edges; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+
+  /* ---------- top bar ---------- */
+  .bar { background: var(--dark); color: #fff; height: 64px; display: flex; align-items: center; gap: 16px; padding: 0 20px; }
+  .bar h1 { font-size: 30px; font-weight: normal; flex: 1; letter-spacing: 1px; }
+  .steps { display: flex; gap: 8px; }
+  .steps span { width: 34px; height: 34px; border: 3px solid #5a5a70; display: grid; place-items: center; font-size: 20px; color: #8a8aa0; }
+  .steps span.on { border-color: var(--yel); color: var(--dark); background: var(--yel); }
+  .steps span.done { border-color: var(--teal); background: var(--teal); color: #fff; }
+  .checker { height: 12px; border-top: 3px solid var(--teal); border-bottom: 3px solid var(--teal);
+    background: repeating-conic-gradient(var(--red) 0 25%, #fff 0 50%) 0 0 / 12px 12px; box-sizing: content-box; height: 6px; }
+
+  .screen { display: none; padding: 24px 20px 120px; max-width: 980px; margin: 0 auto; }
+  .screen.show { display: block; }
+  .ask { font-size: 30px; text-align: center; margin: 8px 0 22px; }
+
+  /* ---------- pixel buttons ---------- */
+  .pbtn { display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    font-size: 30px; padding: 14px 28px; background: var(--yel); border: 3px solid var(--ink);
+    box-shadow: 0 6px 0 var(--yel-d), 0 6px 0 3px var(--ink); position: relative; top: 0; }
+  .pbtn:active { top: 4px; box-shadow: 0 2px 0 var(--yel-d), 0 2px 0 3px var(--ink); }
+  .pbtn[disabled] { opacity: .35; pointer-events: none; }
+  .pbtn.grey { background: #d8d0c8; box-shadow: 0 6px 0 #a89c92, 0 6px 0 3px var(--ink); }
+  .pbtn.grey:active { box-shadow: 0 2px 0 #a89c92, 0 2px 0 3px var(--ink); }
+  .footer { position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 20px 22px; display: flex; justify-content: center; gap: 18px;
+    background: linear-gradient(transparent, var(--cream) 30%); }
+
+  /* ---------- step 1: name ---------- */
+  .card { background: var(--paper); border: 3px solid var(--ink); box-shadow: 6px 6px 0 rgba(60,40,30,.25); padding: 24px; }
+  .name-input { width: 100%; font: inherit; font-size: 40px; padding: 14px 16px; border: 3px solid var(--ink); background: #fff; color: var(--ink);
+    -webkit-user-select: text; user-select: text; border-radius: 0; outline: none; }
+  .name-input:focus { border-color: var(--red); }
+  .name-input::placeholder { color: #c8bdb2; }
+  .label { font-size: 20px; color: var(--grey); margin: 0 0 10px; }
+  .swatches { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+  .swatch { width: 60px; height: 60px; border: 3px solid var(--ink); }
+  .swatch.on { outline: 4px solid var(--ink); outline-offset: 4px; }
+
+  /* style picker */
+  .styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .style-btn { border: 3px solid var(--ink); background: #fff; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 20px; }
+  .style-btn.on { background: #ffe3e0; border-color: var(--red); box-shadow: inset 0 0 0 3px var(--red); }
+  .style-btn i { display: block; width: 100%; height: 54px; border: 3px solid var(--ink); }
+  .style-btn[data-s="diner"] i { background: #2b2b38; box-shadow: inset 0 0 0 6px #2b2b38, inset 0 0 0 9px #ff4f8b; }
+  .style-btn[data-s="cafe"] i { background: #2f3d35; border-color: #a0703f; border-width: 6px; }
+  .style-btn[data-s="japan"] i { background: linear-gradient(90deg, #2d3a63 0 31%, #d9b27c 31% 35%, #2d3a63 35% 65%, #d9b27c 65% 69%, #2d3a63 69%); border-top-width: 8px; border-top-color: #6b4226; }
+
+  /* ---------- themed header + menu (step 1 preview and finished menu) ---------- */
+  .hdr { background: var(--dark); border: 4px solid var(--ink); padding: 18px 16px; text-align: center; position: relative; }
+  .hdr-inner { border: 3px solid var(--sign); padding: 14px 12px; box-shadow: 0 0 14px var(--sign), inset 0 0 14px var(--sign); }
+  .hdr-name { font-size: 40px; color: #fff; text-shadow: 0 0 6px var(--sign), 0 0 16px var(--sign); word-break: break-word; line-height: 1.25; }
+  .hdr-sub { font-size: 20px; color: #7ff3e8; margin-top: 8px; text-shadow: 0 0 8px #2fe0d0; letter-spacing: 3px; }
+
+  .sheet { background: var(--paper); border: 4px solid var(--ink); box-shadow: 8px 8px 0 rgba(60,40,30,.25); margin-top: 18px; padding: 10px 22px 22px; }
+  .sheet-title { font-size: 30px; text-align: center; color: var(--red); margin: 10px 0 6px; letter-spacing: 6px; }
+  .sheet-title span { display: inline-block; padding: 2px 6px 0 12px; }
+  /* finished menu: big picture cards (4 across on a landscape iPad) */
+  .menu-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top: 8px; }
+  .menu-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 10px 6px 8px;
+    border: 3px solid var(--cream-d); position: relative; }
+  .menu-item img { width: 128px; height: 128px; flex: none; }
+  .menu-item .nm { font-size: 30px; line-height: 1.15; }
+  .menu-item .pr { font-size: 30px; color: var(--red); white-space: nowrap; margin-top: auto; }
+  .menu-item .pr small { font-size: 20px; }
+  .menu-item.star { border-color: var(--yel); box-shadow: inset 0 0 0 3px var(--yel); }
+  .rec { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--yel); border: 3px solid var(--ink);
+    font-size: 20px; padding: 2px 8px 0 6px; white-space: nowrap; display: flex; align-items: center; gap: 6px; color: var(--ink); }
+  .rec img { width: 16px !important; height: 16px !important; background: none !important; border: 0 !important; padding: 0 !important; }
+  /* small row version used in the step 1 preview */
+  .menu-list.rows { grid-template-columns: 1fr 1fr; gap: 0 30px; margin: 0; }
+  .rows .menu-item { flex-direction: row; text-align: left; gap: 14px; padding: 10px 4px; border: 0; border-bottom: 3px dotted var(--cream-d); }
+  .rows .menu-item img { width: 64px; height: 64px; }
+  .rows .menu-item .nm { flex: 1; }
+
+  /* Cafe: chalkboard in a wooden frame */
+  .themed[data-style="cafe"] .hdr, .themed[data-style="cafe"] .sheet {
+    background: #2f3d35 radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px) 0 0 / 6px 6px;
+    border: 10px solid #a0703f; box-shadow: inset 0 0 0 3px #6b4226, 8px 8px 0 rgba(40,25,15,.3); }
+  .themed[data-style="cafe"] .hdr-inner { border: 3px dashed rgba(255,255,255,.35); box-shadow: none; }
+  .themed[data-style="cafe"] .hdr-name { color: #f6f1e3; text-shadow: 2px 2px 0 rgba(0,0,0,.25); }
+  .themed[data-style="cafe"] .hdr-sub { color: #ffd96a; text-shadow: none; }
+  .themed[data-style="cafe"] .sheet-title { color: #ffd96a; }
+  .themed[data-style="cafe"] .menu-item { border: 3px dashed rgba(255,255,255,.18); }
+  .themed[data-style="cafe"] .menu-item.star { border: 3px solid #ffd96a; box-shadow: none; }
+  .themed[data-style="cafe"] .menu-item .nm { color: #f6f1e3; }
+  .themed[data-style="cafe"] .menu-item .pr { color: #ffd96a; }
+  .themed[data-style="cafe"] .menu-item img { background: #efe8d6; border: 3px solid #6b4226; padding: 8px; width: 150px; height: 150px; }
+  .themed[data-style="cafe"] .rows .menu-item img { width: 76px; height: 76px; padding: 3px; }
+
+  /* Japanese: indigo noren curtain + washi paper menu */
+  .themed[data-style="japan"] .hdr { background: #2d3a63; border: 0; border-top: 10px solid #6b4226; padding: 22px 16px 40px; }
+  .themed[data-style="japan"] .hdr::before, .themed[data-style="japan"] .hdr::after {
+    content: ""; position: absolute; bottom: 0; width: 8px; height: 45%; background: var(--page); }
+  .themed[data-style="japan"] .hdr::before { left: calc(33.3% - 4px); }
+  .themed[data-style="japan"] .hdr::after { left: calc(66.6% - 4px); }
+  .themed[data-style="japan"] .hdr-inner { border: 0; box-shadow: none; padding: 0; }
+  .themed[data-style="japan"] .hdr-name { text-shadow: none; }
+  .themed[data-style="japan"] .hdr-sub { color: #f3c9c4; text-shadow: none; }
+  .themed[data-style="japan"] .sheet { background: #f6efdc; border-color: #6b4226; box-shadow: 8px 8px 0 rgba(80,50,20,.25); }
+  .themed[data-style="japan"] .sheet-title span { background: #b8322a; color: #fff; border: 3px solid #6b4226; }
+  .themed[data-style="japan"] .menu-item { border: 3px solid #e6dac0; }
+  .themed[data-style="japan"] .menu-item.star { border-color: #b8322a; box-shadow: inset 0 0 0 3px #b8322a; }
+  .themed[data-style="japan"] .menu-item .pr { color: #b8322a; }
+
+  /* ---------- step 2: pick foods ---------- */
+  .count { font-size: 30px; text-align: center; margin-bottom: 18px; }
+  .count b { color: var(--red); font-weight: normal; }
+  .count.full b { color: var(--teal); }
+  .shake { animation: shake .35s; }
+  @keyframes shake { 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+  .section { font-size: 20px; color: var(--grey); margin: 18px 0 10px; display: flex; align-items: center; gap: 10px; }
+  .section::after { content: ""; flex: 1; height: 3px; background: var(--cream-d); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .food { background: #fff; border: 3px solid var(--ink); padding: 10px 6px 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; }
+  .food img { width: 96px; height: 96px; }
+  .food span { font-size: 20px; text-align: center; line-height: 1.2; }
+  .food.on { background: #ffe3e0; border-color: var(--red); box-shadow: inset 0 0 0 3px var(--red); }
+  .food .tick { position: absolute; top: -10px; right: -10px; width: 34px; height: 34px; background: var(--red); color: #fff; border: 3px solid var(--ink);
+    display: none; place-items: center; font-size: 20px; }
+  .food.on .tick { display: grid; }
+
+  /* ---------- step 3: prices ---------- */
+  .prices { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 12px; }
+  .price-row { background: #fff; border: 3px solid var(--ink); display: flex; align-items: center; gap: 12px; padding: 8px 12px; }
+  .price-row img { width: 64px; height: 64px; }
+  .price-row .nm { flex: 1; font-size: 20px; }
+  .stepper { display: flex; align-items: center; gap: 8px; }
+  .stepper button { width: 52px; height: 52px; font-size: 30px; background: var(--teal); color: #fff; border: 3px solid var(--ink); }
+  .stepper button:active { background: var(--teal-d); }
+  .stepper .val { width: 112px; text-align: center; font-size: 20px; }
+  .stepper .val b { font-size: 30px; font-weight: normal; }
+
+  /* ---------- step 4: make it special ---------- */
+  .hint { font-size: 20px; text-align: center; color: var(--grey); margin: -12px 0 20px; }
+  .special { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 12px; }
+  .sp-row { background: #fff; border: 3px solid var(--ink); padding: 10px 12px 12px; }
+  .sp-row.star { border-color: var(--yel-d); box-shadow: inset 0 0 0 3px var(--yel); }
+  .sp-top { display: flex; align-items: center; gap: 12px; }
+  .sp-top img { width: 64px; height: 64px; }
+  .sp-top .nm { flex: 1; font-size: 30px; line-height: 1.15; }
+  .sp-top .nm em { font-style: normal; color: var(--red); }
+  .star-btn { width: 60px; height: 60px; border: 3px solid var(--ink); background: #f0ebe4; display: grid; place-items: center; }
+  .star-btn img { width: 32px; height: 32px; opacity: .25; filter: grayscale(1); }
+  .star-btn.on { background: var(--yel); }
+  .star-btn.on img { opacity: 1; filter: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { font-size: 20px; padding: 8px 12px 6px; border: 3px solid var(--ink); background: #f7f1e6; }
+  .chip.on { background: var(--red); color: #fff; }
+
+  /* ---------- finished menu ---------- */
+  #menu { padding: 0; max-width: none; }
+  .menu-wrap { max-width: 980px; margin: 0 auto; padding: 8px 20px 30px; }
+  /* finished menu: a slimmer sign so all 8 dishes fit on one iPad screen */
+  #menu .hdr { padding: 10px 14px; }
+  #menu .hdr-inner { padding: 8px 10px; }
+  #menu .hdr-sub { margin-top: 2px; }
+  #menu .sheet { margin-top: 10px; padding: 6px 16px 16px; }
+  #menu .sheet-title { margin: 2px 0 6px; font-size: 20px; }
+  #menu[data-style="cafe"] .hdr, #menu[data-style="cafe"] .sheet { border-width: 6px; }
+  #menu[data-style="japan"] .hdr { padding: 10px 14px 22px; }
+  #menu[data-style="cafe"] .menu-item img { width: 134px; height: 134px; padding: 0; }
+  /* page background behind the finished menu, per style */
+  #menu { --page: var(--cream); }
+  #menu[data-style="cafe"] { background: repeating-linear-gradient(90deg, #6b4a33 0 46px, #76533b 46px 92px); min-height: 100vh; }
+  #menu[data-style="japan"] { --page: #d9b27c; background: #d9b27c repeating-linear-gradient(90deg, rgba(120,80,40,.12) 0 3px, transparent 3px 26px); min-height: 100vh; }
+  #preview { --page: var(--cream); }
+  #preview .sheet { margin-top: 12px; padding: 4px 18px 10px; box-shadow: none; }
+  .edit { position: fixed; right: 14px; bottom: 14px; font-size: 20px; padding: 8px 14px; background: rgba(255,255,255,.85); border: 3px solid var(--ink); }
+
+  @media (max-width: 760px) {
+    .menu-list { grid-template-columns: 1fr; }
+    .prices, .special { grid-template-columns: 1fr; }
+    .bar h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar" id="bar">
+  <h1 id="barTitle">Make your restaurant!</h1>
+  <div class="steps"><span id="st1">1</span><span id="st2">2</span><span id="st3">3</span><span id="st4">4</span></div>
+</div>
+<div class="checker" id="barChecker"></div>
+
+<!-- STEP 1: name + sign colour -->
+<section class="screen" id="s1">
+  <p class="ask">Name your restaurant.</p>
+  <div class="card">
+    <input class="name-input" id="nameInput" maxlength="24" placeholder="Sakura Cafe" autocomplete="off" autocorrect="off" spellcheck="false">
+    <p class="label" style="margin-top:22px">Style</p>
+    <div class="styles" id="styles">
+      <button class="style-btn" data-s="diner"><i></i>Diner</button>
+      <button class="style-btn" data-s="cafe"><i></i>Cafe</button>
+      <button class="style-btn" data-s="japan"><i></i>Japanese</button>
+    </div>
+    <div id="colourRow">
+      <p class="label" style="margin-top:22px">Sign colour</p>
+      <div class="swatches" id="swatches"></div>
+    </div>
+  </div>
+  <div class="themed" id="preview" style="margin-top:22px">
+    <div class="hdr"><div class="hdr-inner"><div class="hdr-name" id="signPreview">Sakura Cafe</div><div class="hdr-sub"></div></div></div>
+    <div class="sheet"><div class="menu-list rows">
+      <div class="menu-item"><img src="food/hamburger.png" alt=""><span class="nm">hamburger</span><span class="pr">500 <small>yen</small></span></div>
+      <div class="menu-item"><img src="food/cola.png" alt=""><span class="nm">cola</span><span class="pr">200 <small>yen</small></span></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- STEP 2: pick 8 -->
+<section class="screen" id="s2">
+  <p class="ask">Pick 8 things for your menu.</p>
+  <p class="count" id="count"><b>0</b> / 8</p>
+  <div id="foodSections"></div>
+</section>
+
+<!-- STEP 3: prices -->
+<section class="screen" id="s3">
+  <p class="ask">How much is it?</p>
+  <div class="prices" id="prices"></div>
+</section>
+
+<!-- STEP 4: make it special (optional) -->
+<section class="screen" id="s4">
+  <p class="ask">Make it special!</p>
+  <p class="hint">Add words. Pick one to recommend. (You can skip this.)</p>
+  <div class="special" id="special"></div>
+</section>
+
+<!-- FINISHED MENU -->
+<section class="screen themed" id="menu">
+  <div class="menu-wrap">
+    <div class="hdr"><div class="hdr-inner"><div class="hdr-name" id="menuName"></div><div class="hdr-sub"></div></div></div>
+    <div class="sheet">
+      <p class="sheet-title"><span>MENU</span></p>
+      <div class="menu-list" id="menuList"></div>
+    </div>
+  </div>
+  <button class="edit" id="editBtn">Edit</button>
+</section>
+
+<div class="footer" id="footer">
+  <button class="pbtn grey" id="backBtn">Back</button>
+  <button class="pbtn" id="nextBtn">Next</button>
+</div>
+
+<script>
+// ------------------------------------------------------------------
+//  THE 20 MENU CHOICES  (name, picture file, default price in yen)
+// ------------------------------------------------------------------
+const FOODS = [
+  { group: "Food", items: [
+    ["hamburger", "hamburger", 500], ["pizza", "pizza", 800], ["curry and rice", "curry_and_rice", 700],
+    ["ramen", "ramen", 800], ["sushi", "sushi", 900], ["spaghetti", "spaghetti", 700],
+    ["sandwich", "sandwich", 400], ["hot dog", "hot_dog", 400], ["fried chicken", "fried_chicken", 600],
+    ["rice ball", "rice_ball", 200], ["salad", "salad", 400], ["French fries", "french_fries", 300] ] },
+  { group: "Dessert", items: [
+    ["ice cream", "ice_cream", 300], ["cake", "cake", 400], ["pancakes", "pancakes", 500], ["donut", "donut", 200] ] },
+  { group: "Drinks", items: [
+    ["cola", "cola", 200], ["orange juice", "orange_juice", 200], ["green tea", "green_tea", 150], ["milk", "milk", 150] ] },
+];
+const PICK = 8;
+const STEP = 50, MIN_PRICE = 50, MAX_PRICE = 3000;
+const SIGN_COLOURS = ["#ff4f8b", "#ff7a2f", "#ffd23f", "#3fe08a", "#3fc8ff", "#b77bff"];
+
+const ALL = {};
+FOODS.forEach(g => g.items.forEach(([name, file, price]) => ALL[file] = { name, file, price }));
+
+// ------------------------------------------------------------------
+//  state (kept in this browser so a refresh doesn't lose the work)
+// ------------------------------------------------------------------
+const KEY = "robertsensei-menumaker-v1";
+const SUBS = { diner: "* OPEN *", cafe: "~ Welcome ~", japan: "Welcome!" };
+const WORDS = ["big", "small", "spicy", "sweet", "hot", "cold", "special", "super"];
+const MAX_WORDS = 2;
+let state = { step: 1, name: "", style: "diner", colour: SIGN_COLOURS[0], picked: [], prices: {}, words: {}, star: null };
+try { const saved = JSON.parse(localStorage.getItem(KEY)); if (saved && saved.picked) state = Object.assign(state, saved); } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+const $ = id => document.getElementById(id);
+const img = file => `food/${file}.png`;
+const shownName = () => state.name.trim() || "My Restaurant";
+
+// ------------------------------------------------------------------
+//  step 1
+// ------------------------------------------------------------------
+const nameInput = $("nameInput");
+nameInput.value = state.name;
+nameInput.addEventListener("input", () => { state.name = nameInput.value; save(); renderStep1(); });
+nameInput.addEventListener("keydown", e => { if (e.key === "Enter") nameInput.blur(); });
+SIGN_COLOURS.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "swatch"; b.style.background = c; b.dataset.c = c;
+  b.onclick = () => { state.colour = c; save(); renderStep1(); };
+  $("swatches").appendChild(b);
+});
+document.querySelectorAll(".style-btn").forEach(b => b.onclick = () => { state.style = b.dataset.s; save(); renderStep1(); });
+function applyStyle() {
+  ["preview", "menu"].forEach(id => $(id).dataset.style = state.style);
+  document.querySelectorAll(".hdr-sub").forEach(el => el.textContent = SUBS[state.style]);
+  document.documentElement.style.setProperty("--sign", state.colour);
+}
+function renderStep1() {
+  $("signPreview").textContent = state.name.trim() || "Sakura Cafe";
+  applyStyle();
+  document.querySelectorAll(".style-btn").forEach(b => b.classList.toggle("on", b.dataset.s === state.style));
+  $("colourRow").style.display = state.style === "diner" ? "" : "none";
+  document.querySelectorAll(".swatch").forEach(s => s.classList.toggle("on", s.dataset.c === state.colour));
+}
+
+// ------------------------------------------------------------------
+//  step 2
+// ------------------------------------------------------------------
+FOODS.forEach(g => {
+  const h = document.createElement("div"); h.className = "section"; h.textContent = g.group;
+  const grid = document.createElement("div"); grid.className = "grid";
+  g.items.forEach(([name, file]) => {
+    const b = document.createElement("button");
+    b.className = "food"; b.dataset.file = file;
+    b.innerHTML = `<div class="tick">&#10003;</div><img src="${img(file)}" alt=""><span>${name}</span>`;
+    b.onclick = () => toggleFood(file);
+    grid.appendChild(b);
+  });
+  $("foodSections").append(h, grid);
+});
+function toggleFood(file) {
+  const i = state.picked.indexOf(file);
+  if (i >= 0) state.picked.splice(i, 1);
+  else if (state.picked.length < PICK) state.picked.push(file);
+  else { const c = $("count"); c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake"); return; }
+  save(); renderStep2();
+}
+function renderStep2() {
+  document.querySelectorAll(".food").forEach(b => b.classList.toggle("on", state.picked.includes(b.dataset.file)));
+  $("count").innerHTML = `<b>${state.picked.length}</b> / ${PICK}`;
+  $("count").classList.toggle("full", state.picked.length === PICK);
+}
+
+// ------------------------------------------------------------------
+//  step 3
+// ------------------------------------------------------------------
+function priceOf(file) { return state.prices[file] ?? ALL[file].price; }
+function renderStep3() {
+  const box = $("prices"); box.innerHTML = "";
+  ordered().forEach(file => {
+    const row = document.createElement("div"); row.className = "price-row";
+    row.innerHTML = `<img src="${img(file)}" alt=""><span class="nm">${ALL[file].name}</span>
+      <div class="stepper"><button data-d="-1">-</button><span class="val"><b>${priceOf(file)}</b> yen</span><button data-d="1">+</button></div>`;
+    row.querySelectorAll("button").forEach(b => b.onclick = () => {
+      const v = Math.min(MAX_PRICE, Math.max(MIN_PRICE, priceOf(file) + STEP * Number(b.dataset.d)));
+      state.prices[file] = v; save();
+      row.querySelector(".val b").textContent = v;
+    });
+    box.appendChild(row);
+  });
+}
+// ------------------------------------------------------------------
+//  step 4 (optional): describing words + one recommended dish
+// ------------------------------------------------------------------
+function wordsOf(file) { return state.words[file] || []; }
+function dishName(file) { return [...wordsOf(file), ALL[file].name].join(" "); }
+function dishNameHtml(file) {
+  const w = wordsOf(file);
+  return (w.length ? `<em>${w.join(" ")}</em> ` : "") + ALL[file].name;
+}
+function renderStep4() {
+  const box = $("special"); box.innerHTML = "";
+  ordered().forEach(file => {
+    const row = document.createElement("div");
+    row.className = "sp-row" + (state.star === file ? " star" : "");
+    row.innerHTML = `<div class="sp-top"><img src="${img(file)}" alt=""><span class="nm">${dishNameHtml(file)}</span>
+        <button class="star-btn ${state.star === file ? "on" : ""}" aria-label="recommend"><img src="star.png" alt=""></button></div>
+      <div class="chips">${WORDS.map(w => `<button class="chip ${wordsOf(file).includes(w) ? "on" : ""}" data-w="${w}">${w}</button>`).join("")}</div>`;
+    row.querySelector(".star-btn").onclick = () => { state.star = state.star === file ? null : file; save(); renderStep4(); };
+    row.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+      let w = wordsOf(file).slice();
+      if (w.includes(c.dataset.w)) w = w.filter(x => x !== c.dataset.w);
+      else { w.push(c.dataset.w); if (w.length > MAX_WORDS) w.shift(); }
+      state.words[file] = w; save(); renderStep4();
+    });
+    box.appendChild(row);
+  });
+}
+
+// keep the menu in the same order as the picking screen (food, dessert, drinks)
+function ordered() { return Object.keys(ALL).filter(f => state.picked.includes(f)); }
+
+// ------------------------------------------------------------------
+//  finished menu
+// ------------------------------------------------------------------
+function renderMenu() {
+  $("menuName").textContent = shownName();
+  applyStyle();
+  $("menuList").innerHTML = ordered().map(file => {
+    const star = state.star === file;
+    return `<div class="menu-item${star ? " star" : ""}">${star ? `<span class="rec"><img src="star.png" alt="">Recommended!</span>` : ""}
+      <img src="${img(file)}" alt=""><span class="nm">${dishName(file)}</span><span class="pr">${priceOf(file)} <small>yen</small></span></div>`;
+  }).join("");
+}
+
+// ------------------------------------------------------------------
+//  navigation
+// ------------------------------------------------------------------
+function go(step) {
+  state.step = step; save();
+  ["s1", "s2", "s3", "s4", "menu"].forEach((id, i) => $(id).classList.toggle("show", i + 1 === step));
+  for (let i = 1; i <= 4; i++) {
+    $("st" + i).className = i < step ? "done" : (i === step ? "on" : "");
+  }
+  const onMenu = step === 5;
+  $("bar").style.display = onMenu ? "none" : "";
+  $("barChecker").style.display = onMenu ? "none" : "";
+  $("footer").style.display = onMenu ? "none" : "";
+  $("backBtn").style.visibility = step === 1 ? "hidden" : "visible";
+  $("nextBtn").textContent = step === 4 ? "Done!" : "Next";
+  if (step === 1) renderStep1();
+  if (step === 2) renderStep2();
+  if (step === 3) renderStep3();
+  if (step === 4) renderStep4();
+  if (step === 5) renderMenu();
+  updateNext();
+  window.scrollTo(0, 0);
+}
+function updateNext() {
+  const ok = state.step === 2 ? state.picked.length === PICK : true;
+  $("nextBtn").disabled = !ok;
+}
+$("nextBtn").onclick = () => go(state.step + 1);
+$("backBtn").onclick = () => go(state.step - 1);
+$("editBtn").onclick = () => go(1);
+document.addEventListener("click", updateNext);
+
+renderStep1();
+go(Math.min(Math.max(state.step || 1, 1), 5));
+</script>
+</body>
+</html>

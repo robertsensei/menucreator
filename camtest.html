@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camera Test</title>
+<style>
+  body { font-family: -apple-system, "Hiragino Sans", sans-serif; background: #f7f1e6; color: #3c281e; margin: 0; padding: 24px 16px; text-align: center; }
+  .box { max-width: 720px; margin: 0 auto; background: #fff; border: 3px solid #3c281e; padding: 22px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  p { margin: 6px 0; }
+  .choose { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin: 18px 0 6px; }
+  button { font-size: 20px; padding: 14px 22px; border: 3px solid #3c281e; background: #ffc83d; cursor: pointer; }
+  button.alt { background: #d8f0ee; }
+  video { width: 100%; max-width: 560px; background: #222; border: 3px solid #3c281e; transform: scaleX(-1); display: none; margin-top: 14px; }
+  #qr { display: none; margin: 16px auto 0; background: #fff; padding: 16px; border: 3px solid #3c281e; width: fit-content; }
+  #qr img { display: block; width: 300px; height: 300px; image-rendering: pixelated; }
+  .status { margin-top: 16px; font-size: 22px; font-weight: bold; padding: 14px; border: 3px solid #3c281e; display: none; }
+  .ok { background: #d9f5e3; } .bad { background: #fde0e0; } .wait { background: #fff4d6; }
+  .small { font-size: 14px; color: #8a7a6d; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Camera + QR test</h1>
+  <p>Open this page on <b>two</b> devices.</p>
+  <div class="choose">
+    <button onclick="startCamera()">School laptop: test camera</button>
+    <button class="alt" onclick="showQR()">iPad / phone: show test QR</button>
+  </div>
+  <video id="video" playsinline muted></video>
+  <canvas id="canvas" hidden></canvas>
+  <div id="qr"></div>
+  <div class="status" id="status"></div>
+  <p class="small" id="detail"></p>
+</div>
+<script src="lib/qrcode.js"></script>
+<script src="lib/jsQR.js"></script>
+<script>
+const TEST_TEXT = "ROBERTS-DINER-TEST";
+const statusEl = document.getElementById("status");
+function setStatus(cls, text, detail) {
+  statusEl.style.display = "block"; statusEl.className = "status " + cls; statusEl.textContent = text;
+  document.getElementById("detail").textContent = detail || "";
+}
+
+function showQR() {
+  const q = qrcode(0, "M"); q.addData(TEST_TEXT); q.make();
+  const box = document.getElementById("qr");
+  box.innerHTML = q.createImgTag(10, 0); box.style.display = "block";
+  setStatus("wait", "Hold this up to the laptop camera", "Turn the screen brightness up.");
+}
+
+async function startCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return setStatus("bad", "This browser can't use the camera", "Try Chrome or Edge.");
+  }
+  setStatus("wait", "Asking for the camera... (press Allow)", "");
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  } catch (e) {
+    const why = {
+      NotAllowedError: "The camera is blocked (permission denied by you or by school settings).",
+      NotFoundError: "No camera was found on this computer.",
+      NotReadableError: "The camera is being used by another app (close Teams/Zoom etc. and try again).",
+    }[e.name] || e.name + ": " + e.message;
+    return setStatus("bad", "Camera not working", why);
+  }
+  const video = document.getElementById("video");
+  video.srcObject = stream; video.style.display = "block"; await video.play();
+  const track = stream.getVideoTracks()[0];
+  setStatus("ok", "Camera works! Now hold the test QR up to it.", "Camera: " + (track.label || "unknown"));
+  scan(video);
+}
+
+function scan(video) {
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  let found = false;
+  function tick() {
+    if (found) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      const w = 640, h = Math.round(640 * video.videoHeight / video.videoWidth);
+      canvas.width = w; canvas.height = h;
+      ctx.drawImage(video, 0, 0, w, h);
+      const code = jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: "dontInvert" });
+      if (code && code.data) {
+        found = true;
+        if (code.data === TEST_TEXT) setStatus("ok", "QR scanned! Everything works.", "Reviews can go to the TV with QR codes.");
+        else setStatus("ok", "A QR code was read (not the test one)", code.data.slice(0, 80));
+        return;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+</script>
+</body>
+</html>
